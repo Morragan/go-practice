@@ -1,0 +1,4 @@
+github.com/bojanz/currency v1.3.1 h1:3BUAvy/5hU/Pzqg5nrQslVihV50QG+A2xKPoQw1RKH4=
+github.com/bojanz/currency v1.3.1/go.mod h1:jNoZiJyRTqoU5DFoa+n+9lputxPUDa8Fz8BdDrW06Go=
+github.com/cockroachdb/apd/v3 v3.2.1 h1:U+8j7t0axsIgvQUqthuNm82HIrYXodOV2iWLWtEaIwg=
+github.com/cockroachdb/apd/v3 v3.2.1/go.mod h1:klXJcjp+FffLTHlhIG69tezTDvdP065naDsHzKhYSqc=
