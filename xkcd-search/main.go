@@ -30,7 +30,7 @@ type Comic struct {
 func getExistingComics(outputFile string) []Comic {
 	var comics []Comic
 
-	outFile, err := os.OpenFile(outputFile, os.O_RDWR|os.O_CREATE, 0644)
+	outFile, err := os.OpenFile(outputFile, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
 		fmt.Printf("Error opening file %s: %v\n", outputFile, err)
 		return nil
@@ -135,7 +135,11 @@ func downloadComics(outputFile string) []Comic {
 func findComicsBySearchTerm(term string, comics []Comic) []Comic {
 	foundComics := []Comic{}
 	for _, comic := range comics {
-		if strings.Contains(strings.ToLower(comic.Transcript), strings.ToLower(term)) || strings.Contains(strings.ToLower(comic.Title), strings.ToLower(term)) || strings.Contains(strings.ToLower(comic.SafeTitle), strings.ToLower(term)) || strings.Contains(strings.ToLower(comic.Alt), strings.ToLower(term)) {
+		if strings.Contains(strings.ToLower(comic.Transcript), strings.ToLower(term)) ||
+			strings.Contains(strings.ToLower(comic.Title), strings.ToLower(term)) ||
+			strings.Contains(strings.ToLower(comic.SafeTitle), strings.ToLower(term)) ||
+			strings.Contains(strings.ToLower(comic.Alt), strings.ToLower(term)) {
+
 			foundComics = append(foundComics, comic)
 		}
 	}
