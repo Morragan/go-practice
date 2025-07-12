@@ -3,18 +3,22 @@ package shop
 import (
 	"errors"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/bojanz/currency"
+	"github.com/google/uuid"
 )
 
 type Product struct {
-	ID        int             `json:"id"`
+	ID        string          `json:"id"`
 	Name      string          `json:"name"`
 	Price     currency.Amount `json:"price"`
 	CreatedAt time.Time       `json:"created_at"`
 	UpdatedAt time.Time       `json:"updated_at"`
 }
+
+var ErrProductNotFound = errors.New("product not found")
 
 type ProductCreateRequest struct {
 	Name  string
@@ -22,21 +26,22 @@ type ProductCreateRequest struct {
 }
 
 type ProductUpdateRequest struct {
-	ID    int
+	ID    string
 	Name  string
 	Price currency.Amount
 }
 
 type Shop struct {
+	mu       sync.RWMutex
 	Products []Product
 }
 
 type ShopRepository interface {
 	List() ([]Product, error)
-	Get(id int) (Product, error)
+	Get(id string) (Product, error)
 	Create(pcr ProductCreateRequest) (Product, error)
 	Update(pur ProductUpdateRequest) (Product, error)
-	Delete(id int) error
+	Delete(id string) error
 }
 
 var _ ShopRepository = (*Shop)(nil)
@@ -56,25 +61,32 @@ func NewShop() *Shop {
 	shampooPrice, _ := currency.NewAmount("5", "USD")
 
 	return &Shop{
-		[]Product{
-			{ID: 1, Name: "Comb", Price: combPrice, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-			{ID: 2, Name: "Toothbrush", Price: toothbrushPrice, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-			{ID: 3, Name: "Shampoo", Price: shampooPrice, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+		Products: []Product{
+			{ID: uuid.NewString(), Name: "Comb", Price: combPrice, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+			{ID: uuid.NewString(), Name: "Toothbrush", Price: toothbrushPrice, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
+			{ID: uuid.NewString(), Name: "Shampoo", Price: shampooPrice, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
 		},
 	}
 }
 
 func (s *Shop) List() ([]Product, error) {
-	return s.Products, nil
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	productsCopy := make([]Product, len(s.Products))
+	copy(productsCopy, s.Products)
+	return productsCopy, nil
 }
 
-func (s *Shop) Get(id int) (Product, error) {
+func (s *Shop) Get(id string) (Product, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	for _, product := range s.Products {
 		if product.ID == id {
 			return product, nil
 		}
 	}
-	return Product{}, errors.New("product not found")
+	return Product{}, ErrProductNotFound
 }
 
 func (s *Shop) Create(pcr ProductCreateRequest) (Product, error) {
@@ -83,15 +95,15 @@ func (s *Shop) Create(pcr ProductCreateRequest) (Product, error) {
 	}
 
 	newProduct := Product{
-		// TODO: Use a less error-prone way to generate IDs
-		// TODO: make the shop thread-safe
-		ID:        len(s.Products) + 1,
+		ID:        uuid.NewString(),
 		Name:      pcr.Name,
 		Price:     pcr.Price,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.Products = append(s.Products, newProduct)
 	return newProduct, nil
 }
@@ -101,6 +113,8 @@ func (s *Shop) Update(pur ProductUpdateRequest) (Product, error) {
 		return Product{}, errors.New("invalid product data")
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	for i := range s.Products {
 		if s.Products[i].ID == pur.ID {
 			if pur.Name != "" {
@@ -117,7 +131,9 @@ func (s *Shop) Update(pur ProductUpdateRequest) (Product, error) {
 	return Product{}, errors.New("product not found")
 }
 
-func (s *Shop) Delete(id int) error {
+func (s *Shop) Delete(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	indexToDelete := slices.IndexFunc(s.Products, func(p Product) bool {
 		return p.ID == id
 	})

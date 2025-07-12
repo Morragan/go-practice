@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
-	"strconv"
 
 	"morragan.go-practice/http-shop/shop"
 )
@@ -26,18 +26,17 @@ func (sp *ShopPresenter) ListProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(productsJSON)
+	_, err = w.Write(productsJSON)
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (sp *ShopPresenter) GetProduct(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	idNum, err := strconv.Atoi(id)
-	if err != nil {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
-		return
-	}
-
-	product, err := sp.shop.Get(idNum)
+	product, err := sp.shop.Get(id)
 	if err != nil {
 		if err.Error() == "product not found" {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -52,7 +51,12 @@ func (sp *ShopPresenter) GetProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(productJSON)
+	_, err = w.Write(productJSON)
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (sp *ShopPresenter) CreateProduct(w http.ResponseWriter, r *http.Request) {
@@ -86,19 +90,18 @@ func (sp *ShopPresenter) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(createdProductJSON)
+	_, err = w.Write(createdProductJSON)
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (sp *ShopPresenter) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	idNum, err := strconv.Atoi(id)
-	if err != nil {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
-		return
-	}
-
 	updateRequest := shop.ProductUpdateRequest{
-		ID: idNum,
+		ID: id,
 	}
 
 	productName := r.URL.Query().Get("name")
@@ -124,7 +127,7 @@ func (sp *ShopPresenter) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 
 	updatedProduct, err := sp.shop.Update(updateRequest)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	updatedProductJSON, err := json.Marshal(updatedProduct)
@@ -133,20 +136,19 @@ func (sp *ShopPresenter) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(updatedProductJSON)
+	_, err = w.Write(updatedProductJSON)
+	if err != nil {
+		log.Printf("Error writing response: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (sp *ShopPresenter) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	idNum, err := strconv.Atoi(id)
+	err := sp.shop.Delete(id)
 	if err != nil {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
-		return
-	}
-
-	err = sp.shop.Delete(idNum)
-	if err != nil {
-		if err.Error() == "product not found" {
+		if errors.Is(err, shop.ErrProductNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -172,7 +174,7 @@ func handleProductsRequest(sp *ShopPresenter, w http.ResponseWriter, r *http.Req
 }
 
 func main() {
-	shopPresenter := ShopPresenter{shop.NewShop()}
+	shopPresenter := ShopPresenter{shop: shop.NewShop()}
 
 	http.HandleFunc("/products", func(w http.ResponseWriter, r *http.Request) {
 		handleProductsRequest(&shopPresenter, w, r)
