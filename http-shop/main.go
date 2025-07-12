@@ -158,27 +158,14 @@ func (sp *ShopPresenter) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func handleProductsRequest(sp *ShopPresenter, w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		sp.ListProducts(w, r)
-	case http.MethodPost:
-		sp.CreateProduct(w, r)
-	case http.MethodPut:
-		sp.UpdateProduct(w, r)
-	case http.MethodDelete:
-		sp.DeleteProduct(w, r)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
 func main() {
 	shopPresenter := ShopPresenter{shop: shop.NewShop()}
+	mux := http.NewServeMux()
 
-	http.HandleFunc("/products", func(w http.ResponseWriter, r *http.Request) {
-		handleProductsRequest(&shopPresenter, w, r)
-	})
-	http.HandleFunc("/product", shopPresenter.GetProduct)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	mux.HandleFunc("GET /product", shopPresenter.GetProduct)
+	mux.HandleFunc("GET /products", shopPresenter.ListProducts)
+	mux.HandleFunc("POST /products", shopPresenter.CreateProduct)
+	mux.HandleFunc("PUT /products", shopPresenter.UpdateProduct)
+	mux.HandleFunc("DELETE /products", shopPresenter.DeleteProduct)
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }
